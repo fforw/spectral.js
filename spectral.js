@@ -33,6 +33,7 @@
   const RGBA = 1;
   const HEX = 2;
   const HEXA = 3;
+  const RAW = 4;
 
   const SIZE = 38;
   const GAMMA = 2.4;
@@ -179,9 +180,7 @@
 
   function unpack(color) {
     if (Array.isArray(color)) {
-      const [r, g, b, a = 1] = color;
-
-      return [r, g, b, a];
+      return color;
     }
 
     if (color.startsWith('rgb')) {
@@ -217,6 +216,12 @@
   }
 
   function pack(srgb, returnFormat) {
+
+    if (returnFormat === RAW)
+    {
+      return srgb
+    }
+
     let r = srgb[0];
     let g = srgb[1];
     let b = srgb[2];
@@ -509,6 +514,7 @@ vec4 spectral_mix(vec4 color1, vec4 color2, float t) {
   exports.RGBA = RGBA;
   exports.HEX = HEX;
   exports.HEXA = HEXA;
+  exports.RAW = RAW;
 
   exports.mix = mix;
   exports.palette = palette;
