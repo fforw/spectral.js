@@ -46,12 +46,16 @@
     return t2 / (t1 + t2);
   }
 
-  function mix(color1, color2, t, returnFormat) {
+  const xyzTmp = [0,0,0,0]
+  const linear1Tmp = [0,0,0,0]
+  const linear2Tmp = [0,0,0,0]
+
+  function mix(color1, color2, t, returnFormat, out = []) {
     color1 = unpack(color1);
     color2 = unpack(color2);
 
-    let lrgb1 = srgb_to_linear(color1);
-    let lrgb2 = srgb_to_linear(color2);
+    let lrgb1 = srgb_to_linear(color1, linear1Tmp);
+    let lrgb2 = srgb_to_linear(color2, linear2Tmp);
 
     let R1 = linear_to_reflectance(lrgb1);
     let R2 = linear_to_reflectance(lrgb2);
@@ -73,9 +77,9 @@
       R[i] = KM;
     }
 
-    let rgb = xyz_to_srgb(reflectance_to_xyz(R));
+    let rgb = xyz_to_srgb(reflectance_to_xyz(R, xyzTmp), out);
 
-    rgb.push(lerp(color1[3], color2[3], t));
+    rgb[3] = lerp(color1[3], color2[3], t)
 
     return pack(rgb, returnFormat);
   }
@@ -98,42 +102,62 @@
     return x < 0.0031308 ? x * 12.92 : 1.055 * x ** (1.0 / GAMMA) - 0.055;
   }
 
-  function srgb_to_linear(srgb) {
+  function srgb_to_linear(srgb, out) {
     let r = uncompand(srgb[0] / 255.0);
     let g = uncompand(srgb[1] / 255.0);
     let b = uncompand(srgb[2] / 255.0);
 
-    return [r, g, b];
+    out[0] = r
+    out[1] = g
+    out[2] = b
+
+    return out;
   }
 
-  function linear_to_srgb(lrgb) {
+  function linear_to_srgb(lrgb, out) {
     let r = compand(lrgb[0]);
     let g = compand(lrgb[1]);
     let b = compand(lrgb[2]);
 
-    return [Math.round(clamp(r, 0, 1) * 255), Math.round(clamp(g, 0, 1) * 255), Math.round(clamp(b, 0, 1) * 255)];
+    out[0] = r
+    out[1] = g
+    out[2] = b
+
+    return out
   }
 
-  function xyz_to_srgb(xyz) {
+
+  function xyz_to_srgb(xyz, out) {
     let r = dotproduct(XYZ_RGB[0], xyz);
     let g = dotproduct(XYZ_RGB[1], xyz);
     let b = dotproduct(XYZ_RGB[2], xyz);
 
-    return linear_to_srgb([r, g, b]);
+    out[0] = r
+    out[1] = g
+    out[2] = b
+
+    return linear_to_srgb(out, out);
   }
 
-  function reflectance_to_xyz(R) {
+  function reflectance_to_xyz(R, out) {
     let x = dotproduct(R, CIE_CMF_X);
     let y = dotproduct(R, CIE_CMF_Y);
     let z = dotproduct(R, CIE_CMF_Z);
 
-    return [x, y, z];
+    out[0] = x
+    out[1] = y
+    out[2] = z
+    return out
   }
+
+  const spectralUpsamplingTmp = [0,0,0,0,0,0,0]
 
   function spectral_upsampling(lrgb) {
     let w = Math.min(Math.min(lrgb[0], lrgb[1]), lrgb[2]);
 
-    lrgb = [lrgb[0] - w, lrgb[1] - w, lrgb[2] - w];
+    lrgb[0] -= w
+    lrgb[1] -= w
+    lrgb[2] -= w
 
     let c = Math.min(lrgb[1], lrgb[2]);
     let m = Math.min(lrgb[0], lrgb[2]);
@@ -142,7 +166,15 @@
     let g = Math.max(0, Math.min(lrgb[1] - lrgb[2], lrgb[1] - lrgb[0]));
     let b = Math.max(0, Math.min(lrgb[2] - lrgb[1], lrgb[2] - lrgb[0]));
 
-    return [w, c, m, y, r, g, b];
+    spectralUpsamplingTmp[0] = w
+    spectralUpsamplingTmp[1] = c
+    spectralUpsamplingTmp[2] = m
+    spectralUpsamplingTmp[3] = y
+    spectralUpsamplingTmp[4] = r
+    spectralUpsamplingTmp[5] = g
+    spectralUpsamplingTmp[6] = b
+
+    return spectralUpsamplingTmp;
   }
 
   function linear_to_reflectance(lrgb) {
@@ -189,9 +221,8 @@
         .split(',')
         .map((value) => (value.trim().endsWith('%') ? Math.round(parseFloat(value.trim()) * 2.55) : Number(value.trim())));
 
-      const [r, g, b, a = 1] = color;
-
-      return [r, g, b, a];
+      color[3] = 1
+      return color;
     }
 
     if (color.startsWith('#')) {
@@ -236,10 +267,10 @@
     b = b.toString(16);
     a = (a > 1 ? a : Math.round(clamp(a, 0, 1) * 255)).toString(16);
 
-    if (r.length == 1) r = '0' + r;
-    if (g.length == 1) g = '0' + g;
-    if (b.length == 1) b = '0' + b;
-    if (a.length == 1) a = '0' + a;
+    if (r.length === 1) r = '0' + r;
+    if (g.length === 1) g = '0' + g;
+    if (b.length === 1) b = '0' + b;
+    if (a.length === 1) a = '0' + a;
 
     return `#${r}${g}${b}${returnFormat === HEXA ? a : ''}`;
   }
