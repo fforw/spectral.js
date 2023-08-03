@@ -250,6 +250,10 @@
 
     if (returnFormat === RAW)
     {
+      srgb[0] = (srgb[0] * 255)|0
+      srgb[1] = (srgb[1] * 255)|0
+      srgb[2] = (srgb[2] * 255)|0
+
       return srgb
     }
 
